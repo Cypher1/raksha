@@ -1,0 +1,123 @@
+particle SmartMic
+  audio: writes AudioStream {}
+  confidence: writes Confidence {}
+
+particle DemoApp
+  audio1: reads AudioStream {}
+  confidence1: reads Confidence {}
+  audio2: reads AudioStream {}
+  confidence2: reads Confidence {}
+  audio: writes AudioStream {}
+  claim audio derives from audio1 and derives from audio2
+
+// Egress?
+particle Storage
+  audio: reads AudioStream {}
+
+// Egress?
+particle SpeechToText
+  audio: reads AudioStream {}
+  text: writes SpeechText {}
+
+recipe R
+  SmartMic
+    audio: writes audio_stream1
+    confidence: writes confidence1
+  SmartMic
+    audio: writes audio_stream2
+    confidence: writes confidence2
+  DemoApp
+    audio1: reads audio_stream1
+    confidence1: reads confidence1
+    audio2: reads audio_stream2
+    confidence2: reads confidence2
+    audio: writes audio_stream
+  Storage
+    audio: reads audio_stream
+  SpeechToText
+    audio: reads audio_stream
+    text: writes speech_text
+// __AUTH_LOGIC__
+.decl hasTag(ap : AccessPath, owner : Principal, tag : Tag)
+.decl ownsAccessPath(owner : Principal, ap : AccessPath)
+
+"RootOfTrust" says {
+  // Declare capabilities of the app. This can be made less verbose.
+  // e.g., accesses("R.DemoApp#0.audio", "SpeechToText").
+  //
+  hasTag("R.SpeechToText#3.audio", "DemoApp", "DoesSpeechToText").
+  hasTag("R.Storage#4.audio", "DemoApp", "DoesStorage").
+}
+
+"RootOfTrust" says {
+  // Allows "Host" to configure "SpeechToText" and "Storage".
+  // "Guest" is not allowed to make any changes.
+  //
+  "Host" canSay hasTag(ap, "HostConfig", "AllowSpeechToText") :-
+      isAccessPath(ap).
+  "Guest" canSay hasTag(ap, "GuestConfig", "AllowSpeechToText") :-
+      isAccessPath(ap).
+  "Host" canSay hasTag(ap, "HostConfig", "AllowStorage") :-
+      isAccessPath(ap).
+  "Guest" canSay hasTag(ap, "GuestConfig", "AllowStorage") :-
+      isAccessPath(ap).
+
+  hasTag(ap, "RootOfTrust", config) :-
+      hasTag(ap, "HostConfig", config),
+      hasTag(ap, "GuestConfig", config).
+
+  hasTag(ap, "RootOfTrust", config) :-
+      hasTag(ap, "HostConfig", config).
+}
+
+"RootOfTrust" says {
+  // Allows DemoApp to make claims about its features.
+  //
+  "DemoApp" canSay hasTag(ap, "DemoApp", "DoesSpeechToText") :-
+      isAccessPath(ap).
+  "DemoApp" canSay hasTag(ap, "DemoApp", "DoesStorage") :-
+      isAccessPath(ap).
+  isAccessPath("R.SmartMic#1.audio").
+  isAccessPath("R.SmartMic#2.audio").
+}
+
+"Host" says {
+  // "Host" controls audio out of the microphones.
+  ownsAccessPath("Host", "R.SmartMic#1.audio").
+  ownsAccessPath("Host", "R.SmartMic#2.audio").
+  hasTag("R.SmartMic#1.audio", "Host", "RawAudio").
+  hasTag("R.SmartMic#2.audio", "Host", "RawAudio").
+
+  // allow SpeechToText and Storage.
+  // Can be made less verbose.
+  // e.g., allow("R.SmartMic#1.audio", "SpeechToText").
+  hasTag("R.SmartMic#1.audio", "HostConfig", "AllowSpeechToText").
+  hasTag("R.SmartMic#1.audio", "HostConfig", "AllowStorage").
+  hasTag("R.SmartMic#2.audio", "HostConfig", "AllowSpeechToText").
+  hasTag("R.SmartMic#2.audio", "HostConfig", "AllowStorage").
+}
+
+"Guest" says {
+  // "Guest" controls audio out of the microphones.
+  ownsAccessPath("Guest", "R.SmartMic#1.audio").
+  ownsAccessPath("Guest", "R.SmartMic#2.audio").
+  hasTag("R.SmartMic#1.audio", "Guest", "RawAudio").
+  hasTag("R.SmartMic#2.audio", "Guest", "RawAudio").
+
+  // allow SpeechToText and Storage.
+  // Can be made less verbose.
+  // e.g., allow("R.SmartMic#1.audio", "SpeechToText").
+  hasTag("R.SmartMic#1.audio", "GuestConfig", "AllowSpeechToText").
+  hasTag("R.SmartMic#1.audio", "GuestConfig", "AllowStorage").
+  hasTag("R.SmartMic#2.audio", "GuestConfig", "AllowSpeechToText").
+  hasTag("R.SmartMic#2.audio", "GuestConfig", "AllowStorage").
+}
+
+
+
+
+
+
+
+
+

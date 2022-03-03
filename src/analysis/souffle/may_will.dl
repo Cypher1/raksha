@@ -41,4 +41,15 @@ disallowedUsage(dataConsumer, usage, owner, tag) :-
 allUsagesAllowed("dummy_var") :- !disallowedUsage(dataConsumer, usage, owner, tag),
     isPrincipal(dataConsumer), isUsage(usage), isTag(tag), ownsTag(owner, tag).
 
+isUsage("SpeechToText").
+isUsage("Storage").
+
+disallowedUsage(where, usage, owner, "RawAudio") :-
+   isUsage(usage), 
+   says_hasTag("RootOfTrust", ap, where, cat("Does", usage)),
+   ownsAccessPath(owner, ap),
+   mayHaveTag(ap, owner, "RawAudio"),
+   !mayHaveTag(ap, "RootOfTrust", cat("Allow", usage)).
+
+
 #endif // MAY_WILL_DL_

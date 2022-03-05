@@ -10,11 +10,9 @@ particle DemoApp
   audio: writes AudioStream {}
   claim audio derives from audio1 and derives from audio2
 
-// Egress?
 particle Storage
   audio: reads AudioStream {}
 
-// Egress?
 particle SpeechToText
   audio: reads AudioStream {}
   text: writes SpeechText {}
@@ -53,6 +51,13 @@ recipe R
   // Allows "Host" to configure "SpeechToText" and "Storage".
   // "Guest" is not allowed to make any changes.
   //
+  // hasTag(ap, "RootOfTrust", config) :-
+  //     hasTag(ap, "HostConfig", config).
+
+  hasTag(ap, "RootOfTrust", config) :-
+      hasTag(ap, "HostConfig", config);
+      hasTag(ap, "GuestConfig", config).
+
   "Host" canSay hasTag(ap, "HostConfig", "AllowSpeechToText") :-
       isAccessPath(ap).
   "Guest" canSay hasTag(ap, "GuestConfig", "AllowSpeechToText") :-
@@ -62,12 +67,6 @@ recipe R
   "Guest" canSay hasTag(ap, "GuestConfig", "AllowStorage") :-
       isAccessPath(ap).
 
-  hasTag(ap, "RootOfTrust", config) :-
-      hasTag(ap, "HostConfig", config),
-      hasTag(ap, "GuestConfig", config).
-
-  hasTag(ap, "RootOfTrust", config) :-
-      hasTag(ap, "HostConfig", config).
 }
 
 "RootOfTrust" says {

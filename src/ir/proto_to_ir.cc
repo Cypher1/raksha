@@ -177,8 +177,8 @@ void ProtoToIR::ToIR(ProtoToIR::ID block_id, const proto::Block& block_proto) {
       << "This block should be pre-constructed.";
   auto& block_builder = find_block_ptr->second;
   // TODO(#619): Consider preserving inputs/outputs.
-  for (const auto& result_it : block_proto.results().values()) {
-    block_builder.AddResult(result_it.first, ToIR(result_it.second));
+  for (const auto& [result_name, result] : block_proto.results().values()) {
+    block_builder.AddResult(result_name, ToIR(result));
   }
   // Also construct the block's children in place.
   for (const auto& operation_it : block_proto.operations()) {
@@ -201,8 +201,8 @@ void ProtoToIR::ToIR(Operation& operation,
   for (const auto& input_proto : operation_proto.inputs()) {
     operation.AddInput(ToIR(input_proto));
   }
-  for (const auto& attribute_it : operation_proto.attributes().attributes()) {
-    operation.AddAttribute(attribute_it.first, ToIR(attribute_it.second));
+  for (const auto& [attribute_name, attribute] : operation_proto.attributes().attributes()) {
+    operation.AddAttribute(attribute_name, ToIR(attribute));
   }
 }
 

@@ -16,17 +16,22 @@
 #ifndef SRC_IR_IR_TO_PROTO_H_
 #define SRC_IR_IR_TO_PROTO_H_
 
+#include <variant>
 #include "src/ir/attributes/attribute.h"
 #include "src/ir/attributes/int_attribute.h"
 #include "src/ir/attributes/string_attribute.h"
 #include "src/ir/ir_context.h"
+#include "src/ir/ir_traversing_visitor.h"
 #include "src/ir/module.h"
 #include "src/ir/proto/raksha_ir.pb.h"
 #include "src/ir/value.h"
 
 namespace raksha::ir {
 
-class IRToProto {
+using IRProto =
+    std::variant<proto::Module, proto::BlockWithId, proto::OperationWithId>;
+
+class IRToProto : IRTraversingVisitor<IRToProto, IRProto> {
  public:
   using ID = uint64_t;
   static proto::IrTranslationUnit Convert(const IRContext& context,
@@ -43,7 +48,8 @@ class IRToProto {
     }
 
     (*result.mutable_frontend()) = "Raksha.IRToProto";
-    (*result.mutable_top_level_module()) = state.ModuleToProto(root);
+    (*result.mutable_top_level_module()) =
+        std::get<proto::Module>(state.Visit(root));
 
     return result;
   }
@@ -58,9 +64,13 @@ class IRToProto {
 
   virtual ~IRToProto() {}
 
-  proto::Module ModuleToProto(const Module&);
-  proto::Block BlockToProto(const Block&);
-  proto::Operation OperationToProto(const Operation&);
+  IRProto FoldResult(IRProto accumulator,
+                     IRProto child_result) override;
+
+  IRProto PreVisit(const Module& module) override;
+  IRProto PreVisit(const Block& block) override;
+  IRProto PreVisit(const Operation& operation) override;
+
   proto::Value ValueToProto(const Value&);
   proto::AnyValue AnyToProto(const value::Any&);
   proto::BlockArgumentValue BlockArgumentToProto(const value::BlockArgument&);

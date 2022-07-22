@@ -354,6 +354,7 @@ cc_library(
     hdrs = ["ir_to_proto.h"],
     deps = [
         ":ir_context",
+        ":ir_traversing_visitor",
         ":module",
         ":ssa_names",
         ":value",

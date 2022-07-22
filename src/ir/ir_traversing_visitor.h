@@ -49,8 +49,7 @@ class IRTraversingVisitor : public IRVisitor<Derived, Result, IsConst> {
 
   // Used to accumulate child results from the node's children.
   // Should discard or merge `child_result` into the `accumulator`.
-  virtual Result FoldResult(Result accumulator,
-                            Result child_result) {
+  virtual Result FoldResult(Result accumulator, Result child_result) {
     return accumulator;
   }
 

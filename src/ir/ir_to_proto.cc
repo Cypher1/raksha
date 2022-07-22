@@ -14,54 +14,62 @@
 // limitations under the License.
 //----------------------------------------------------------------------------
 
+#include <memory>
+#include <variant>
 #include "src/ir/ir_to_proto.h"
 #include "src/ir/ssa_names.h"
 
-#include <memory>
-#include <variant>
-
 namespace raksha::ir {
 
-proto::Module IRToProto::ModuleToProto(const Module& module) {
-  proto::Module module_proto;
-  for (const std::unique_ptr<Block>& block : module.blocks()) {
-    proto::BlockWithId* block_proto = module_proto.mutable_blocks()->Add();
-    (*block_proto->mutable_block()) = BlockToProto(*block);
-    block_proto->set_id(GetID(*block));
+IRProto IRToProto::FoldResult(IRProto accumulator,
+                  IRProto child_result) {
+  if (std::holds_alternative<proto::Module>(accumulator)) {
+    proto::BlockWithId* block_proto =
+        std::get<proto::Module>(accumulator).mutable_blocks()->Add();
+    *block_proto =
+        std::get<proto::BlockWithId>(std::move(child_result));
   }
+  if (std::holds_alternative<proto::BlockWithId>(accumulator)) {
+    proto::OperationWithId* operation_proto =
+        std::get<proto::BlockWithId>(accumulator).mutable_block()->mutable_operations()->Add();
+    *operation_proto =
+        std::get<proto::OperationWithId>(std::move(child_result));
+  }
+  return accumulator;
+}
+
+IRProto IRToProto::PreVisit(const Module& module) {
+  proto::Module module_proto;
   return module_proto;
 }
 
-proto::Block IRToProto::BlockToProto(const Block& block) {
-  proto::Block block_proto;
+IRProto IRToProto::PreVisit(const Block& block) {
+  proto::BlockWithId block_proto;
   // TODO(#619): Consider preserving inputs/outputs.
-  for (const std::unique_ptr<Operation>& operation : block.operations()) {
-    proto::OperationWithId* operation_proto =
-        block_proto.mutable_operations()->Add();
-    (*operation_proto->mutable_operation()) = OperationToProto(*operation);
-    const uint64_t new_operation_id = GetID(*operation);
-    operation_proto->set_id(new_operation_id);
+  // TODO(FILE ISSUE FOR TRAVERSAL): Traverse results.
+  for (const std::pair<std::string, Value> result : block.results()) {
+    block_proto.mutable_block()->mutable_results()->mutable_values()->insert(
+        {result.first, ValueToProto(result.second)});
   }
-  for (const auto& [block_id, result_name]: block.results()) {
-    block_proto.mutable_results()->mutable_values()->insert(
-        {block_id, ValueToProto(result_name)});
-  }
+  block_proto.set_id(GetID(block));
   return block_proto;
 }
 
-proto::Operation IRToProto::OperationToProto(const Operation& operation) {
-  proto::Operation operation_proto;
-  const auto& op = operation.op();
-  const auto& name = op.name();
-  operation_proto.set_operator_name(std::string(name));
-  for (const auto& input : operation.inputs()) {
-    operation_proto.mutable_inputs()->Add(ValueToProto(input));
-  }
-  for (const auto& [attribute_name, attribute_value] : operation.attributes()) {
-    operation_proto.mutable_attributes()->mutable_attributes()->insert(
-        {attribute_name, AttributeToProto(attribute_value)});
-  }
+IRProto IRToProto::PreVisit(const Operation& operation) {
+  proto::OperationWithId operation_proto;
   // TODO(#619): Consider preserving results and impl_module.
+  operation_proto.set_id(GetID(operation));
+  operation_proto.mutable_operation()->set_operator_name(std::string(operation.op().name()));
+
+  // TODO(FILE ISSUE FOR TRAVERSAL): Traverse inputs.
+  for (const auto& input : operation.inputs()) {
+    operation_proto.mutable_operation()->mutable_inputs()->Add(ValueToProto(input));
+  }
+  // TODO(FILE ISSUE FOR TRAVERSAL): Traverse attributes.
+  for (const auto& attribute : operation.attributes()) {
+    operation_proto.mutable_operation()->mutable_attributes()->mutable_attributes()->insert(
+        {attribute.first, AttributeToProto(attribute.second)});
+  }
   return operation_proto;
 }
 
